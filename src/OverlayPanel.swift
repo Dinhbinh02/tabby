@@ -106,8 +106,7 @@ public struct SwitcherHUDView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     engine.selectedIndex = index
-                    engine.commitSwitch()
-                    OverlayPanel.shared.hide()
+                    EventTapManager.shared.commitAndCloseSession()
                 }
             }
         }
@@ -148,6 +147,7 @@ public struct SwitcherHUDView: View {
 
 public final class OverlayPanel: NSPanel {
     public static let shared = OverlayPanel()
+    private var outsideClickMonitor: Any?
     
     private init() {
         super.init(
@@ -186,9 +186,23 @@ public final class OverlayPanel: NSPanel {
         }
         
         self.orderFrontRegardless()
+        
+        if outsideClickMonitor == nil {
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+                guard let self = self, self.isVisible else { return }
+                let mouseLoc = NSEvent.mouseLocation
+                if !self.frame.contains(mouseLoc) {
+                    EventTapManager.shared.cancelSession()
+                }
+            }
+        }
     }
     
     public func hide() {
+        if let monitor = outsideClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            outsideClickMonitor = nil
+        }
         self.orderOut(nil)
     }
 }

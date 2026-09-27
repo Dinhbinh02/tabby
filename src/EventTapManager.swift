@@ -272,7 +272,7 @@ public final class EventTapManager {
         return Unmanaged.passRetained(event)
     }
     
-    private func commitAndCloseSession() {
+    public func commitAndCloseSession() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.hudShowWorkItem?.cancel()
@@ -283,7 +283,7 @@ public final class EventTapManager {
         }
     }
     
-    private func cancelSession() {
+    public func cancelSession() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.hudShowWorkItem?.cancel()
