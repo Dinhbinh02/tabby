@@ -174,20 +174,37 @@ public final class SoftwareUpdater: ObservableObject {
         let downloadTask = Foundation.URLSession.shared.downloadTask(with: downloadUrl) { [weak self] tempLocation, response, error in
             guard let self = self else { return }
             
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.isDownloading = false
+                    self.showUpToDateAlert(message: "Failed to download update: \(error.localizedDescription)")
+                }
+                return
+            }
+            
+            guard let tempLocation = tempLocation else {
+                DispatchQueue.main.async {
+                    self.isDownloading = false
+                    self.showUpToDateAlert(message: "Download failed: installer file was empty.")
+                }
+                return
+            }
+            
+            // Must move file synchronously before the completion handler returns
+            do {
+                try? Foundation.FileManager.default.removeItem(at: targetFile)
+                try Foundation.FileManager.default.moveItem(at: tempLocation, to: targetFile)
+            } catch {
+                DispatchQueue.main.async {
+                    self.isDownloading = false
+                    self.showUpToDateAlert(message: "Failed to save installer: \(error.localizedDescription)")
+                }
+                return
+            }
+            
             DispatchQueue.main.async {
                 self.isDownloading = false
-                
-                guard let tempLocation = tempLocation, error == nil else {
-                    self.showUpToDateAlert(message: "Failed to download update: \(error?.localizedDescription ?? "Unknown error")")
-                    return
-                }
-                
-                do {
-                    try Foundation.FileManager.default.moveItem(at: tempLocation, to: targetFile)
-                    self.mountAndReplaceApp(dmgPath: targetFile.path)
-                } catch {
-                    self.showUpToDateAlert(message: "Failed to process installer: \(error.localizedDescription)")
-                }
+                self.mountAndReplaceApp(dmgPath: targetFile.path)
             }
         }
         downloadTask.resume()
@@ -195,6 +212,8 @@ public final class SoftwareUpdater: ObservableObject {
     
     private func mountAndReplaceApp(dmgPath: String) {
         let mountPoint = "/Volumes/Tabby_Update_\(UUID().uuidString.prefix(6))"
+        let currentAppPath = Foundation.Bundle.main.bundlePath
+        let targetApp = currentAppPath.hasSuffix(".app") ? currentAppPath : "/Applications/Tabby.app"
         
         DispatchQueue.global(qos: .userInitiated).async {
             // Mount DMG silently
@@ -205,15 +224,21 @@ public final class SoftwareUpdater: ObservableObject {
             mountProcess.waitUntilExit()
             
             let mountedApp = "\(mountPoint)/Tabby.app"
-            let targetApp = "/Applications/Tabby.app"
             
             if Foundation.FileManager.default.fileExists(atPath: mountedApp) {
                 let updateScript = """
-                sleep 0.5
+                sleep 0.8
+                killall Tabby 2>/dev/null || true
                 rm -rf "\(targetApp)"
                 cp -R "\(mountedApp)" "\(targetApp)"
-                hdiutil detach "\(mountPoint)" -quiet || true
-                rm -f "\(dmgPath)" || true
+                if [ "\(targetApp)" != "/Applications/Tabby.app" ]; then
+                    rm -rf "/Applications/Tabby.app"
+                    cp -R "\(mountedApp)" "/Applications/Tabby.app"
+                fi
+                xattr -cr "\(targetApp)" 2>/dev/null || true
+                xattr -cr "/Applications/Tabby.app" 2>/dev/null || true
+                hdiutil detach "\(mountPoint)" -quiet 2>/dev/null || true
+                rm -f "\(dmgPath)" 2>/dev/null || true
                 open "\(targetApp)"
                 """
                 
@@ -238,6 +263,10 @@ public final class SoftwareUpdater: ObservableObject {
                 detachProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
                 detachProcess.arguments = ["detach", mountPoint, "-quiet"]
                 try? detachProcess.run()
+                
+                DispatchQueue.main.async {
+                    self.showUpToDateAlert(message: "Failed to locate Tabby.app inside downloaded DMG installer.")
+                }
             }
         }
     }
