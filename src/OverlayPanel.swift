@@ -42,11 +42,11 @@ public struct SwitcherHUDView: View {
                     
                     // Window Title
                     Text(item.title.isEmpty ? item.appName : item.title)
-                        .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(
                             isSelected
-                                ? (isDark ? Color.white : Color.white)
-                                : (isDark ? Color.white.opacity(0.88) : Color.black.opacity(0.85))
+                                ? Color.white
+                                : (isDark ? Color.white.opacity(0.92) : Color.black.opacity(0.88))
                         )
                         .lineLimit(1)
                         .truncationMode(.tail)
