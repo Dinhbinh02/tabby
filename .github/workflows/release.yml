@@ -1,0 +1,31 @@
+name: Release Tabby
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Tabby App & Package DMG
+        run: |
+          chmod +x bundle.sh create_dmg.sh
+          ./create_dmg.sh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: releases/*.dmg
+          draft: false
+          prerelease: false
+          generate_release_notes: true
