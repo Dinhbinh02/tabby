@@ -91,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func openGitHub() {
-        if let url = URL(string: "https://github.com/binhnimo/Tabby") {
+        if let url = URL(string: "https://github.com/dinhbinh02/tabby") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -140,7 +140,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func checkAndRequestAccessibility() {
-        let trusted = AXIsProcessTrusted()
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let trusted = AXIsProcessTrustedWithOptions(options)
         if !trusted {
             NSLog("[Tabby] Accessibility permission is required for window switching.")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

@@ -41,7 +41,7 @@ public final class SettingsWindowController: NSWindowController, NSToolbarDelega
         
         super.init(window: window)
         
-        let toolbar = NSToolbar(identifier: "FastTabSettingsToolbar")
+        let toolbar = NSToolbar(identifier: "TabbySettingsToolbar")
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
         toolbar.displayMode = .iconAndLabel

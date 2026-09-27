@@ -69,47 +69,46 @@ public final class WindowEngine: ObservableObject {
         for info in windowInfoList {
             guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
                   let boundsDict = info[kCGWindowBounds as String] as? [String: Any],
-                  let width = boundsDict["Width"] as? Double, width >= 120,
-                  let height = boundsDict["Height"] as? Double, height >= 120,
+                  let width = boundsDict["Width"] as? Double, width >= 80,
+                  let height = boundsDict["Height"] as? Double, height >= 80,
                   let windowID = info[kCGWindowNumber as String] as? CGWindowID,
-                  let pid = info[kCGWindowOwnerPID as String] as? pid_t,
-                  let ownerName = info[kCGWindowOwnerName as String] as? String
+                  let pid = info[kCGWindowOwnerPID as String] as? pid_t
             else { continue }
             
-            // Exclude system services and FastTab itself
-            if ownerName == "Dock" ||
-               ownerName == "Window Server" ||
-               ownerName == "Control Center" ||
-               ownerName == "Notification Center" ||
-               ownerName == "SystemUIServer" ||
-               ownerName == "Tabby" ||
-               ownerName == "FastTab" ||
-               ownerName == "WindowManager" {
-                continue
-            }
-            
             let runningApp = NSRunningApplication(processIdentifier: pid)
+            let rawOwner = info[kCGWindowOwnerName as String] as? String
+            let appName = (rawOwner != nil && !rawOwner!.isEmpty) ? rawOwner! : (runningApp?.localizedName ?? "")
             let bundleID = runningApp?.bundleIdentifier ?? ""
             
-            if bundleID == "com.apple.dock" ||
+            if appName.isEmpty { continue }
+            
+            // Exclude system daemons and Tabby itself
+            if appName == "Dock" ||
+               appName == "Window Server" ||
+               appName == "Control Center" ||
+               appName == "Notification Center" ||
+               appName == "SystemUIServer" ||
+               appName == "Tabby" ||
+               appName == "WindowManager" ||
+               appName == "Wallpaper" ||
+               bundleID == "com.apple.dock" ||
                bundleID == "com.apple.finder.desktop" ||
+               bundleID == "com.apple.WindowManager" ||
                bundleID == "com.dinhbinh.Tabby" ||
-               bundleID == "com.dinhbinh.FastTab" ||
                excluded.contains(bundleID) ||
-               excluded.contains(ownerName) {
+               excluded.contains(appName) {
                 continue
             }
             
             activeWindowIDs.insert(windowID)
             let rawTitle = (info[kCGWindowName as String] as? String) ?? ""
-            
-            // If cached or already has rawTitle, use it without AX IPC overhead
-            let finalTitle = titleCache[windowID] ?? rawTitle
+            let cachedTitle = titleCache[windowID]
+            let finalTitle = (cachedTitle != nil && !cachedTitle!.isEmpty) ? cachedTitle! : rawTitle
             
             candidates.append(Candidate(
                 windowID: windowID,
                 pid: pid,
-                ownerName: ownerName,
+                ownerName: appName,
                 bundleID: bundleID,
                 runningApp: runningApp,
                 title: finalTitle
