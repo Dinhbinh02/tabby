@@ -1,6 +1,107 @@
 import AppKit
 import Foundation
 import Combine
+import SwiftUI
+
+public struct UpdateDialogView: View {
+    let release: GitHubRelease
+    @ObservedObject var updater = SoftwareUpdater.shared
+    var onInstall: () -> Void
+    var onLater: () -> Void
+    var onGitHub: () -> Void
+    
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                if let icon = NSApp.applicationIconImage {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 52, height: 52)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 52, height: 52)
+                        .foregroundColor(.accentColor)
+                }
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("A new version of Tabby is available!")
+                        .font(.system(size: 15, weight: .bold))
+                    
+                    Text("Tabby **\(release.tagName)** is now available (you have **v\(updater.currentVersion)**). Would you like to install it now?")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            
+            Text("Release Notes:")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+            
+            // Native Markdown-parsed scrollable release notes container
+            ScrollView {
+                Text(LocalizedStringKey(formattedNotes(release.body)))
+                    .font(.system(size: 12))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(height: 180)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+            
+            if updater.isDownloading {
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                    Text("Downloading and installing update...")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            HStack {
+                Button("View on GitHub") {
+                    onGitHub()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(.accentColor)
+                
+                Spacer()
+                
+                Button("Later") {
+                    onLater()
+                }
+                .keyboardShortcut(.cancelAction)
+                
+                Button("Install Update") {
+                    onInstall()
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(updater.isDownloading)
+            }
+            .padding(.top, 4)
+        }
+        .padding(22)
+        .frame(width: 480)
+    }
+    
+    private func formattedNotes(_ raw: String?) -> String {
+        guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return "Bug fixes and performance improvements."
+        }
+        let lines = raw.components(separatedBy: "\n").filter { !$0.contains("**Full Changelog**:") }
+        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
 
 public struct GitHubRelease: Codable {
     public let tagName: String
@@ -125,32 +226,46 @@ public final class SoftwareUpdater: ObservableObject {
         alert.runModal()
     }
     
+    private var updateWindowController: NSWindowController?
+    
     public func showUpdateWindow(release: GitHubRelease) {
         NSApp.activate(ignoringOtherApps: true)
         
-        let alert = NSAlert()
-        alert.messageText = "A new version of Tabby is available!"
-        
-        let notes = release.body?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Performance improvements and bug fixes."
-        alert.informativeText = "Tabby \(release.tagName) is now available (you have \(currentVersion)).\n\nRelease Notes:\n\(notes)"
-        alert.alertStyle = .informational
-        
-        alert.addButton(withTitle: "Install Update")
-        alert.addButton(withTitle: "Later")
-        alert.addButton(withTitle: "View on GitHub")
-        
-        let response = alert.runModal()
-        switch response {
-        case .alertFirstButtonReturn:
-            // Install Update
-            self.downloadAndInstall(release: release)
-        case .alertThirdButtonReturn:
-            if let url = URL(string: release.htmlUrl) {
-                NSWorkspace.shared.open(url)
-            }
-        default:
-            break
+        if let existing = updateWindowController?.window, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            return
         }
+        
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 420),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Software Update"
+        window.center()
+        window.isReleasedWhenClosed = false
+        
+        let view = UpdateDialogView(
+            release: release,
+            onInstall: { [weak self] in
+                self?.downloadAndInstall(release: release)
+            },
+            onLater: { [weak window] in
+                window?.close()
+            },
+            onGitHub: {
+                if let url = URL(string: release.htmlUrl) {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        )
+        
+        window.contentView = NSHostingView(rootView: view)
+        let wc = NSWindowController(window: window)
+        self.updateWindowController = wc
+        wc.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
     }
     
     public func downloadAndInstall(release: GitHubRelease) {

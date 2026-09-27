@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="1.0.3"
+VERSION="1.0.4"
 APP_NAME="Tabby"
 DMG_NAME="${APP_NAME}-v${VERSION}.dmg"
 BUILD_DIR=".build"
