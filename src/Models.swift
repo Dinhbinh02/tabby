@@ -26,6 +26,12 @@ public struct ShortcutConfig: Codable, Equatable {
         keyDisplay: "Tab"
     )
     
+    public static let defaultCmdShiftTab = ShortcutConfig(
+        keyCode: 48, // Tab key
+        carbonModifiers: UInt32(cmdKey | shiftKey),
+        keyDisplay: "Tab"
+    )
+    
     public var displayString: String {
         var str = ""
         if carbonModifiers & UInt32(controlKey) != 0 { str += "⌃ " }

@@ -134,12 +134,16 @@ public final class EventTapManager {
             return nil
         }
         
-        let shortcut = SettingsManager.shared.shortcut
-        let modifierMask = carbonToCGFlags(shortcut.carbonModifiers)
+        let forwardShortcut = SettingsManager.shared.forwardShortcut
+        let backwardShortcut = SettingsManager.shared.backwardShortcut
+        
+        let forwardMask = carbonToCGFlags(forwardShortcut.carbonModifiers)
+        let backwardMask = carbonToCGFlags(backwardShortcut.carbonModifiers)
+        let anyRequiredModifiers = forwardMask.union(backwardMask)
         
         // 1. Handle Modifier Key Releases (Commit Switch)
         if type == .flagsChanged {
-            let modifierActive = (flags.rawValue & modifierMask.rawValue) != 0
+            let modifierActive = (flags.rawValue & anyRequiredModifiers.rawValue) != 0
             
             if !modifierActive && isModifierHeld {
                 isModifierHeld = false
@@ -153,11 +157,11 @@ public final class EventTapManager {
         // 2. Handle Key Down
         if type == .keyDown {
             let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-            let isShiftPressed = flags.contains(.maskShift)
-            let hasRequiredModifiers = (flags.rawValue & modifierMask.rawValue) == modifierMask.rawValue
+            let isBackwardTrigger = (keyCode == backwardShortcut.keyCode && modifiersMatch(eventFlags: flags, requiredFlags: backwardMask))
+            let isForwardTrigger = (keyCode == forwardShortcut.keyCode && modifiersMatch(eventFlags: flags, requiredFlags: forwardMask))
             
-            // Trigger Hotkey matched (e.g. Cmd+Tab)
-            if keyCode == shortcut.keyCode && hasRequiredModifiers {
+            // Trigger Hotkey matched
+            if isBackwardTrigger || isForwardTrigger {
                 isModifierHeld = true
                 
                 DispatchQueue.main.async { [weak self] in
@@ -166,20 +170,21 @@ public final class EventTapManager {
                         self.isSessionActive = true
                         WindowEngine.shared.refreshWindows()
                         
-                        if WindowEngine.shared.windowList.isEmpty {
+                        let count = WindowEngine.shared.windowList.count
+                        if count == 0 {
                             self.isSessionActive = false
                             return
                         }
                         
-                        if isShiftPressed && WindowEngine.shared.windowList.count > 1 {
-                            WindowEngine.shared.selectedIndex = WindowEngine.shared.windowList.count - 1
-                        } else if WindowEngine.shared.windowList.count > 1 {
+                        if isBackwardTrigger && count > 1 {
+                            WindowEngine.shared.selectedIndex = count - 1
+                        } else if count > 1 {
                             WindowEngine.shared.selectedIndex = 1
                         } else {
                             WindowEngine.shared.selectedIndex = 0
                         }
                         
-                        // Debounce popup: Only show HUD if Cmd is held for > 100ms
+                        // Debounce popup: Only show HUD if modifier is held for > 100ms
                         self.hudShowWorkItem?.cancel()
                         let workItem = DispatchWorkItem { [weak self] in
                             guard let self = self, self.isSessionActive, self.isModifierHeld else { return }
@@ -191,7 +196,7 @@ public final class EventTapManager {
                         // Already in session: navigate and show immediately
                         let count = WindowEngine.shared.windowList.count
                         if count > 0 {
-                            if isShiftPressed {
+                            if isBackwardTrigger {
                                 WindowEngine.shared.selectedIndex = (WindowEngine.shared.selectedIndex - 1 + count) % count
                             } else {
                                 WindowEngine.shared.selectedIndex = (WindowEngine.shared.selectedIndex + 1) % count
@@ -301,5 +306,17 @@ public final class EventTapManager {
         if carbonModifiers & UInt32(controlKey) != 0 { flags.insert(.maskControl) }
         if carbonModifiers & UInt32(shiftKey) != 0 { flags.insert(.maskShift) }
         return flags
+    }
+    
+    private func modifiersMatch(eventFlags: CGEventFlags, requiredFlags: CGEventFlags) -> Bool {
+        let relevantMasks: [CGEventFlags] = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
+        for mask in relevantMasks {
+            let eventHas = eventFlags.contains(mask)
+            let requiredHas = requiredFlags.contains(mask)
+            if eventHas != requiredHas {
+                return false
+            }
+        }
+        return true
     }
 }

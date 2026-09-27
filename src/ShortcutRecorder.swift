@@ -4,11 +4,13 @@ import Carbon.HIToolbox
 
 public struct ShortcutRecorderView: View {
     @Binding var config: ShortcutConfig
+    public var defaultConfig: ShortcutConfig
     @State private var isRecording = false
     @State private var monitor: Any?
     
-    public init(config: Binding<ShortcutConfig>) {
+    public init(config: Binding<ShortcutConfig>, defaultConfig: ShortcutConfig = .defaultCmdTab) {
         self._config = config
+        self.defaultConfig = defaultConfig
     }
     
     public var body: some View {
@@ -36,9 +38,9 @@ public struct ShortcutRecorderView: View {
                     }
                     Spacer(minLength: 4)
                     
-                    if !isRecording && config != .defaultCmdTab {
+                    if !isRecording && config != defaultConfig {
                         Button(action: {
-                            config = .defaultCmdTab
+                            config = defaultConfig
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.secondary)

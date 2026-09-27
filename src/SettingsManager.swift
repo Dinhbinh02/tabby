@@ -14,7 +14,8 @@ public enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
 public final class SettingsManager: ObservableObject {
     public static let shared = SettingsManager()
     
-    private let kShortcutKey = "Tabby_ShortcutConfig"
+    private let kForwardShortcutKey = "Tabby_ForwardShortcut"
+    private let kBackwardShortcutKey = "Tabby_BackwardShortcut"
     private let kExcludedAppsKey = "Tabby_ExcludedApps"
     private let kLaunchAtLoginKey = "Tabby_LaunchAtLogin"
     private let kWindowHistoryKey = "Tabby_WindowHistory"
@@ -41,13 +42,28 @@ public final class SettingsManager: ObservableObject {
         }
     }
     
-    @Published public var shortcut: ShortcutConfig {
+    @Published public var forwardShortcut: ShortcutConfig {
         didSet {
-            if let data = try? JSONEncoder().encode(shortcut) {
-                UserDefaults.standard.set(data, forKey: kShortcutKey)
+            if let data = try? JSONEncoder().encode(forwardShortcut) {
+                UserDefaults.standard.set(data, forKey: kForwardShortcutKey)
             }
-            onShortcutChanged?(shortcut)
+            onShortcutChanged?()
         }
+    }
+    
+    @Published public var backwardShortcut: ShortcutConfig {
+        didSet {
+            if let data = try? JSONEncoder().encode(backwardShortcut) {
+                UserDefaults.standard.set(data, forKey: kBackwardShortcutKey)
+            }
+            onShortcutChanged?()
+        }
+    }
+    
+    // Backwards-compatible alias
+    public var shortcut: ShortcutConfig {
+        get { forwardShortcut }
+        set { forwardShortcut = newValue }
     }
     
     @Published public var excludedBundleIDs: Set<String> {
@@ -64,7 +80,7 @@ public final class SettingsManager: ObservableObject {
         }
     }
     
-    public var onShortcutChanged: ((ShortcutConfig) -> Void)?
+    public var onShortcutChanged: (() -> Void)?
     public var onExcludedAppsChanged: (() -> Void)?
     public var onPauseStateChanged: ((Bool) -> Void)?
     
@@ -87,12 +103,20 @@ public final class SettingsManager: ObservableObject {
             self.appearance = .system
         }
         
-        // Load shortcut
-        if let data = UserDefaults.standard.data(forKey: kShortcutKey),
+        // Load forward shortcut
+        if let data = UserDefaults.standard.data(forKey: kForwardShortcutKey) ?? UserDefaults.standard.data(forKey: "Tabby_ShortcutConfig"),
            let saved = try? JSONDecoder().decode(ShortcutConfig.self, from: data) {
-            self.shortcut = saved
+            self.forwardShortcut = saved
         } else {
-            self.shortcut = .defaultCmdTab
+            self.forwardShortcut = .defaultCmdTab
+        }
+        
+        // Load backward shortcut
+        if let data = UserDefaults.standard.data(forKey: kBackwardShortcutKey),
+           let saved = try? JSONDecoder().decode(ShortcutConfig.self, from: data) {
+            self.backwardShortcut = saved
+        } else {
+            self.backwardShortcut = .defaultCmdShiftTab
         }
         
         // Load excluded apps

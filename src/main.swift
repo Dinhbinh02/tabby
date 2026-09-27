@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EventTapManager.shared.start()
         
         // Listen to shortcut changes from Settings
-        SettingsManager.shared.onShortcutChanged = { _ in
+        SettingsManager.shared.onShortcutChanged = {
             EventTapManager.shared.start()
         }
         

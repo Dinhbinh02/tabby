@@ -108,8 +108,12 @@ public struct GeneralSettingsPane: View {
             }
             
             // Shortcut Section
-            SettingsSection(title: "Shortcut:", bottomDivider: false) {
-                ShortcutRecorderView(config: $settings.shortcut)
+            SettingsSection(title: "Next window:", bottomDivider: false) {
+                ShortcutRecorderView(config: $settings.forwardShortcut, defaultConfig: .defaultCmdTab)
+            }
+            
+            SettingsSection(title: "Previous window:", bottomDivider: false) {
+                ShortcutRecorderView(config: $settings.backwardShortcut, defaultConfig: .defaultCmdShiftTab)
             }
             
             // Appearance Section
@@ -279,7 +283,8 @@ public struct AboutSettingsPane: View {
                 .controlSize(.small)
                 
                 Button("Reset Defaults") {
-                    settings.shortcut = .defaultCmdTab
+                    settings.forwardShortcut = .defaultCmdTab
+                    settings.backwardShortcut = .defaultCmdShiftTab
                     settings.excludedBundleIDs = []
                     settings.appearance = .system
                     settings.launchAtLogin = false
