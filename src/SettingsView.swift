@@ -240,8 +240,8 @@ public struct AboutSettingsPane: View {
     public init() {}
     
     public var body: some View {
-        VStack(spacing: 14) {
-            Spacer().frame(height: 10)
+        VStack(spacing: 16) {
+            Spacer().frame(height: 8)
             
             if let icon = NSApp.applicationIconImage {
                 Image(nsImage: icon)
@@ -256,37 +256,18 @@ public struct AboutSettingsPane: View {
                     .foregroundColor(.accentColor)
             }
             
-            VStack(spacing: 3) {
+            VStack(spacing: 4) {
                 Text("Tabby")
                     .font(.system(size: 20, weight: .bold))
                 
-                Text("Version 1.0.0")
-                    .font(.system(size: 11))
+                Text("Version \(SoftwareUpdater.shared.currentVersion)")
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
             
-            Text("Lightweight, zero-delay macOS Window Switcher")
+            Text("A lightweight, blazing-fast window switcher for macOS.")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
-            
-            Divider().frame(width: 240)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "bolt.fill").foregroundColor(.orange)
-                    Text("Instant zero-delay HID event tap switching")
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "leaf.fill").foregroundColor(.green)
-                    Text("Minimal memory footprint & 0% idle CPU")
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "macwindow.on.rectangle").foregroundColor(.blue)
-                    Text("Top 10 active windows with natural Z-order")
-                }
-            }
-            .font(.system(size: 12))
-            .foregroundColor(.secondary)
             
             Spacer()
             
@@ -310,6 +291,6 @@ public struct AboutSettingsPane: View {
             .padding(.bottom, 6)
         }
         .padding(24)
-        .frame(width: 470, height: 320)
+        .frame(width: 470, height: 260)
     }
 }
